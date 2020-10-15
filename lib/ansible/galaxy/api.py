@@ -279,6 +279,7 @@ class GalaxyAPI:
             except HTTPError as e:
                 if e.code in (504, 503,):
                     retries += 1
+                    display.vvvv("Calling Galaxy at %s, attempt %s" % (url, retries))
                     continue
                 raise GalaxyError(e, error_context_msg)
             except Exception as e:
