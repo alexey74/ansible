@@ -283,6 +283,13 @@ class GalaxyAPI:
                     continue
                 raise GalaxyError(e, error_context_msg)
             except Exception as e:
+                if 'timed out' in str(e):
+                    retries += 1
+                    display.vvvv(
+                        "Calling Galaxy at %s after read timeout, attempt %s"
+                        % (url, retries)
+                    )
+                    continue
                 raise AnsibleError(
                     "Unknown error when attempting to call Galaxy at '%s': %s"
                     % (url, to_native(e))
