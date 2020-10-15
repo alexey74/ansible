@@ -261,25 +261,31 @@ class GalaxyAPI:
         headers = headers or {}
         self._add_auth_token(headers, url, required=auth_required)
 
-        try:
-            display.vvvv("Calling Galaxy at %s" % url)
-            resp = open_url(
-                to_native(url),
-                data=args,
-                validate_certs=self.validate_certs,
-                headers=headers,
-                method=method,
-                timeout=int(os.environ.get('ANSIBLE_TIMEOUT', '120')),
-                http_agent=user_agent(),
-                follow_redirects='safe',
-            )
-        except HTTPError as e:
-            raise GalaxyError(e, error_context_msg)
-        except Exception as e:
-            raise AnsibleError(
-                "Unknown error when attempting to call Galaxy at '%s': %s"
-                % (url, to_native(e))
-            )
+        retries = 0
+        while retries < int(os.environ.get('ANSIBLE_CONNECTION_RETRIES', '20')):
+            try:
+                display.vvvv("Calling Galaxy at %s" % url)
+                resp = open_url(
+                    to_native(url),
+                    data=args,
+                    validate_certs=self.validate_certs,
+                    headers=headers,
+                    method=method,
+                    timeout=int(os.environ.get('ANSIBLE_TIMEOUT', '120')),
+                    http_agent=user_agent(),
+                    follow_redirects='safe',
+                )
+                break
+            except HTTPError as e:
+                if e.code in (504, 503,):
+                    retries += 1
+                    continue
+                raise GalaxyError(e, error_context_msg)
+            except Exception as e:
+                raise AnsibleError(
+                    "Unknown error when attempting to call Galaxy at '%s': %s"
+                    % (url, to_native(e))
+                )
 
         resp_data = to_text(resp.read(), errors='surrogate_or_strict')
         try:
